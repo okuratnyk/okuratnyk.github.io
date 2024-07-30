@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f9f9f9;
+        }
+        .login-form, .ranking-container {
+            display: none;
+        }
+        .ranking-container {
+            width: 100%;
+        }
+        .ranking-form {
+            margin-bottom: 20px;
+        }
+        .ranking-list {
+            margin-top: 20px;
+        }
+        .ranking-item {
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .arrow-up {
+            color: green;
+        }
+        .arrow-down {
+            color: red;
+        }
+        .arrow-no-change {
+            color: gray;
+        }
+        .delete-button, .edit-button {
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        .edit-button {
+            color: blue;
+        }
+        .delete-button {
+            color: red;
+        }
+        .edit-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-form" id="login-form">
+        <h1>Zaloguj się</h1>
+        <form onsubmit="event.preventDefault(); checkPassword();">
+            <label for="username">Nazwa użytkownika:</label>
+            <input type="text" id="username" required>
+            <label for="password">Hasło:</label>
+            <input type="password" id="password" required>
+            <button type="submit">Zaloguj się</button>
+        </form>
+    </div>
+
+    <div class="ranking-container" id="ranking-container">
+        <h1>Ustaw Rankingi</h1>
+        <form class="ranking-form" onsubmit="event.preventDefault(); addRanking();">
+            <label for="name">Nazwa:</label>
+            <input type="text" id="name" required>
+            <button type="submit">Dodaj do rankingu</button>
+        </form>
+        <div class="ranking-list" id="ranking-list">
+            <h2>Ranking:</h2>
+        </div>
+
+        <!-- Edit Popup -->
+        <div class="edit-popup" id="edit-popup">
+            <h3>Edytuj Oznaczenie</h3>
+            <label for="edit-index">Indeks:</label>
+            <input type="text" id="edit-index" readonly>
+            <br>
+            <label for="edit-arrow">Oznaczenie:</label>
+            <select id="edit-arrow">
+                <option value="⏹️">Brak zmian</option>
+                <option value="⏫">Wzrost</option>
+                <option value="⏬">Spadek</option>
+            </select>
+            <br>
+            <button onclick="saveChanges()">Zapisz</button>
+            <button onclick="closeEditPopup()">Anuluj</button>
+        </div>
+    </div>
+
+    <script>
+        const correctPassword = 'rc1';
+
+        function checkPassword() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (username === 'RankClient1' && password === correctPassword) {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('ranking-container').style.display = 'block';
+            } else {
+                alert('Nieprawidłowa nazwa użytkownika lub hasło');
+            }
+        }
+
+        let rankings = [];
+        let previousRankings = [];
+        let currentEditIndex = null;
+
+        function addRanking() {
+            const name = document.getElementById('name').value;
+
+            if (name) {
+                rankings.push({ name, indicator: '⏹️' });
+
+                updateIndicators();
+                displayRankings();
+                clearForm();
+            }
+        }
+
+        function deleteRanking(index) {
+            rankings.splice(index, 1);
+            updateIndicators();
+            displayRankings();
+        }
+
+        function swapPositions(index1, index2) {
+            const temp = rankings[index1];
+            rankings[index1] = rankings[index2];
+            rankings[index2] = temp;
+            updateIndicators();
+            displayRankings();
+        }
+
+        function updateIndicators() {
+            if (previousRankings.length === 0) {
+                previousRankings = rankings.map(item => ({ ...item }));
+                return;
+            }
+
+            rankings.forEach((item, index) => {
+                const prevIndex = previousRankings.findIndex(prevItem => prevItem.name === item.name);
+                if (prevIndex === -1) {
+                    item.indicator = '⏹️';
+                } else {
+                    if (index < prevIndex) {
+                        item.indicator = '⏫';
+                    } else if (index > prevIndex) {
+                        item.indicator = '⏬';
+                    } else {
+                        item.indicator = '⏹️';
+                    }
+                }
+            });
+
+            previousRankings = rankings.map(item => ({ ...item }));
+        }
+
+        function openEditPopup(index) {
+            const popup = document.getElementById('edit-popup');
+            const editIndexInput = document.getElementById('edit-index');
+            const editArrowSelect = document.getElementById('edit-arrow');
+            
+            editIndexInput.value = index;
+            editArrowSelect.value = rankings[index].indicator || '⏹️';
+            currentEditIndex = index;
+
+            popup.style.display = 'block';
+        }
+
+        function closeEditPopup() {
+            document.getElementById('edit-popup').style.display = 'none';
+        }
+
+        function saveChanges() {
+            const editArrowSelect = document.getElementById('edit-arrow');
+            rankings[currentEditIndex].indicator = editArrowSelect.value;
+
+            displayRankings();
+            closeEditPopup();
+        }
+
+        function displayRankings() {
+            const rankingList = document.getElementById('ranking-list');
+            rankingList.innerHTML = '<h2>Ranking:</h2>';
+
+            rankings.forEach((item, index) => {
+                const rankingItem = document.createElement('div');
+                rankingItem.className = 'ranking-item';
+                rankingItem.setAttribute('draggable', true);
+                rankingItem.textContent = `${index + 1}. ${item.name}`;
+
+                if (item.indicator) {
+                    const indicatorSpan = document.createElement('span');
+                    indicatorSpan.className = item.indicator === '⏫' ? 'arrow-up' : (item.indicator === '⏬' ? 'arrow-down' : 'arrow-no-change');
+                    indicatorSpan.textContent = item.indicator;
+                    rankingItem.appendChild(indicatorSpan);
+                }
+
+                rankingItem.addEventListener('dragstart', (e) => handleDragStart(e, index));
+                rankingItem.addEventListener('dragover', (e) => e.preventDefault());
+                rankingItem.addEventListener('drop', (e) => handleDrop(e, index));
+
+                const deleteButton = document.createElement('span');
+                deleteButton.className = 'delete-button';
+                deleteButton.textContent = '❌';
+                deleteButton.onclick = () => deleteRanking(index);
+                rankingItem.appendChild(deleteButton);
+
+                const editButton = document.createElement('span');
+                editButton.className = 'edit-button';
+                editButton.textContent = '✏️';
+                editButton.onclick = () => openEditPopup(index);
+                rankingItem.appendChild(editButton);
+
+                rankingList.appendChild(rankingItem);
+            });
+        }
+
+        function handleDragStart(e, index) {
+            e.dataTransfer.setData('text/plain', index);
+        }
+
+        function handleDrop(e, index) {
+            const draggedIndex = e.dataTransfer.getData('text/plain');
+            if (draggedIndex !== index.toString()) {
+                swapPositions(draggedIndex, index);
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('name').value = '';
+        }
+
+        // Display login form initially
+        document.getElementById('login-form').style.display = 'block';
+    </script>
+</body>
+</html>
